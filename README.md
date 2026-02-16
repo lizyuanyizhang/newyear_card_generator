@@ -1,36 +1,47 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 新春贺卡生成器 | Lunar New Year Greeting Card Maker
 
-## Getting Started
+制作专属农历新年贺卡，送上最温暖的祝福。
 
-First, run the development server:
+## 功能特点
+
+- **多种贺卡风格**：落款风、极简现代、水墨版画、艺术家海报、经典红福等
+- **千问 AI 优化**：接入通义千问，智能优化祝福语与风格建议
+- **预设祝福语**：多风格词库（经典/网络/俏皮/文艺）
+- **一键导出**：下载高清 PNG 图片
+
+## 快速开始
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+访问 http://localhost:3000 即可使用。
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 贺卡背景图
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+贺卡采用「背景图 + 文字叠层」，您只需将选好的图片放入 `public/card-bg/` 并按风格命名：
 
-## Learn More
+| 文件名 | 风格 |
+|--------|------|
+| inkWash.png | 传统水墨 |
+| minimal.png | 极简 |
+| modern.png | 现代东方 |
+| festive.png | 喜庆卷轴 |
 
-To learn more about Next.js, take a look at the following resources:
+**可选**：运行 `npm run generate-bg` 可用万相 API 自动生成 4 张背景（需配置 DASHSCOPE_API_KEY）。
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 千问 AI 配置（可选）
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+如需使用「千问优化」祝福语功能：
 
-## Deploy on Vercel
+1. 复制 `.env.local.example` 为 `.env.local`
+2. 前往 [阿里云 DashScope](https://dashscope.console.aliyun.com/) 获取 API Key
+3. 在 `.env.local` 中填入 `DASHSCOPE_API_KEY=sk-xxx`
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 技术栈
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Next.js 16 (App Router)
+- TypeScript
+- Tailwind CSS
+- 通义千问 (DashScope)
