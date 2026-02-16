@@ -136,6 +136,11 @@ const LAYOUT_OVERRIDES: Partial<Record<CardTemplate, Partial<OverlayLayoutConfig
     rootBackgroundColor: "#8B2500",
     imageStyle: { objectFit: "contain", objectPosition: "center" },
   },
+  handdrawn: {
+    // contain 保证完整显示「过年啦」、灯笼等背景元素，与喜春同理
+    imageStyle: { objectFit: "contain", objectPosition: "center" },
+    rootBackgroundColor: "#F5EDE4",
+  },
 };
 
 /**
