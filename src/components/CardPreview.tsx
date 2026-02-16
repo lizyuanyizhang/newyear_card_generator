@@ -7,8 +7,11 @@
  */
 
 import { forwardRef } from "react";
-import type { CardData, CardFont, CardTemplate } from "@/types/card";
+import type { CardData, CardFont } from "@/types/card";
 import GallopingHorse from "./card-assets/GallopingHorse";
+
+/** CardPreview 自有模板（与 AICardPreview 的 minimal/scroll/playful/handdrawn 不同） */
+type CardPreviewTemplate = "inkWash" | "minimal" | "modern" | "festive";
 import PlumBlossom from "./card-assets/PlumBlossom";
 import VintageTexture from "./card-assets/VintageTexture";
 import InkSplashes from "./card-assets/InkSplashes";
@@ -41,7 +44,7 @@ const CardPreview = forwardRef<HTMLDivElement, CardPreviewProps>(
   function CardPreview({ data }, ref) {
     const yearLabel = `${data.year}马年 · 新春`;
     const fontFamily = FONT_FAMILY_MAP[data.cardFont ?? "maShanZheng"];
-    const template: CardTemplate = data.template ?? "inkWash";
+    const template: CardPreviewTemplate = (data.template ?? "minimal") as CardPreviewTemplate;
 
     return (
       <div

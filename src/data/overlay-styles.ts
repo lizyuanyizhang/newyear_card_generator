@@ -165,13 +165,14 @@ export function getOverlayLayout(template: CardTemplate): OverlayLayoutConfig {
   if (!overrides) return base;
 
   const merged: OverlayLayoutConfig = { ...base };
+  const m = merged as unknown as Record<string, unknown>;
   for (const key of Object.keys(overrides) as (keyof OverlayLayoutConfig)[]) {
     const v = overrides[key];
     if (v !== undefined) {
       if (key === "backdropStyle" && typeof v === "object") {
-        (merged as Record<string, unknown>).backdropStyle = { ...base.backdropStyle, ...v };
+        m.backdropStyle = { ...base.backdropStyle, ...v };
       } else {
-        (merged as Record<string, unknown>)[key] = v;
+        m[key] = v;
       }
     }
   }
