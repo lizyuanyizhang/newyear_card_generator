@@ -12,6 +12,22 @@ import {
   BLESSINGS,
   BLESSING_CATEGORIES,
 } from "@/data/blessings";
+import { AI_PROVIDERS, getProvider } from "@/data/ai-providers";
+import type { AIProviderId } from "@/data/ai-providers";
+
+const AI_KEYS = "ai_provider";
+const AI_KEY = "ai_api_key";
+const AI_ENDPOINT = "ai_endpoint_id";
+
+function loadStored<T>(key: string, fallback: T): T {
+  if (typeof window === "undefined") return fallback;
+  try {
+    const v = localStorage.getItem(key);
+    return (v ?? fallback) as T;
+  } catch {
+    return fallback;
+  }
+}
 
 type CategoryId = (typeof BLESSING_CATEGORIES)[number]["id"];
 
@@ -37,6 +53,27 @@ export default function CustomizationPanel({
     el.style.height = `${Math.min(el.scrollHeight, 300)}px`;
   }, [data.blessing]);
   const [aiBlessError, setAiBlessError] = useState("");
+  const [showApiConfig, setShowApiConfig] = useState(true);
+  const [aiProvider, setAiProvider] = useState<AIProviderId>("qwen");
+  const [aiApiKey, setAiApiKey] = useState("");
+  const [aiEndpointId, setAiEndpointId] = useState("");
+  const [hasLoadedApi, setHasLoadedApi] = useState(false);
+
+  useEffect(() => {
+    setAiProvider(loadStored(AI_KEYS, "qwen"));
+    setAiApiKey(loadStored(AI_KEY, ""));
+    setAiEndpointId(loadStored(AI_ENDPOINT, ""));
+    setHasLoadedApi(true);
+  }, []);
+
+  useEffect(() => {
+    if (!hasLoadedApi) return;
+    try {
+      localStorage.setItem(AI_KEYS, aiProvider);
+      localStorage.setItem(AI_KEY, aiApiKey);
+      localStorage.setItem(AI_ENDPOINT, aiEndpointId);
+    } catch {}
+  }, [hasLoadedApi, aiProvider, aiApiKey, aiEndpointId]);
 
   const AI_PERSONAS = [
     { id: "default" as const, name: "通用" },
@@ -75,6 +112,9 @@ export default function CustomizationPanel({
           currentBlessing: data.blessing,
           relationship: blessCategory,
           persona: aiPersona,
+          provider: aiProvider,
+          apiKey: aiApiKey || undefined,
+          endpointId: (getProvider(aiProvider) as { needEndpoint?: boolean } | undefined)?.needEndpoint ? aiEndpointId || undefined : undefined,
         }),
       });
       const json = await res.json();
@@ -90,8 +130,65 @@ export default function CustomizationPanel({
     }
   };
 
+  const needEndpoint = (getProvider(aiProvider) as { needEndpoint?: boolean } | undefined)?.needEndpoint;
+
   return (
     <div className="flex min-w-0 flex-col gap-5 rounded-xl border border-[#E8E2DB] bg-white p-6 shadow-sm">
+      {/* API Key 配置 - 与下方表单项风格一致 */}
+      <div>
+        <button
+          type="button"
+          onClick={() => setShowApiConfig(!showApiConfig)}
+          className="mb-1 flex w-full items-center justify-between text-left"
+        >
+          <label className="block text-xs font-medium tracking-wide text-[#5C4033]">
+            API 配置（填 Key 即可使用 AI 优化）
+          </label>
+          <span className="text-[10px] text-[#9B8378]">{showApiConfig ? "收起" : "展开"}</span>
+        </button>
+        {showApiConfig && (
+          <div className="space-y-4">
+            <div>
+              <label className="mb-1 block text-xs font-medium tracking-wide text-[#5C4033]">选择模型</label>
+              <select
+                value={aiProvider}
+                onChange={(e) => setAiProvider(e.target.value as AIProviderId)}
+                className="w-full rounded-md border border-[#E8E2DB] bg-[#FAF8F5] px-3 py-2 text-sm text-[#2C1810] focus:border-[#C99E56] focus:outline-none focus:ring-1 focus:ring-[#C99E56]/30"
+              >
+                {AI_PROVIDERS.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium tracking-wide text-[#5C4033]">API Key</label>
+              <input
+                type="password"
+                value={aiApiKey}
+                onChange={(e) => setAiApiKey(e.target.value)}
+                placeholder={getProvider(aiProvider)?.placeholder ?? "sk-xxx"}
+                className="w-full rounded-md border border-[#E8E2DB] bg-[#FAF8F5] px-3 py-2 text-sm text-[#2C1810] placeholder:text-[#9B8378] focus:border-[#C99E56] focus:outline-none focus:ring-1 focus:ring-[#C99E56]/30"
+                autoComplete="off"
+              />
+            </div>
+            {needEndpoint && (
+              <div>
+                <label className="mb-1 block text-xs font-medium tracking-wide text-[#5C4033]">豆包接入点 ID</label>
+                <input
+                  type="text"
+                  value={aiEndpointId}
+                  onChange={(e) => setAiEndpointId(e.target.value)}
+                  placeholder="如：ep-xxxxxxxx"
+                  className="w-full rounded-md border border-[#E8E2DB] bg-[#FAF8F5] px-3 py-2 text-sm text-[#2C1810] placeholder:text-[#9B8378] focus:border-[#C99E56] focus:outline-none focus:ring-1 focus:ring-[#C99E56]/30"
+                  autoComplete="off"
+                />
+              </div>
+            )}
+            <p className="text-[10px] text-[#9B8378]">密钥仅存于本地，不会上传。未填写时千问可读环境变量。</p>
+          </div>
+        )}
+      </div>
+
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="mb-1 block text-xs font-medium tracking-wide text-[#5C4033]">
@@ -208,15 +305,15 @@ export default function CustomizationPanel({
           ))}
         </div>
 
-        {/* ④ 千问优化 */}
-        <p className="mb-1 text-[10px] text-[#9B8378]">④ 千问优化</p>
+        {/* ④ AI 优化 */}
+        <p className="mb-1 text-[10px] text-[#9B8378]">④ AI 优化</p>
         <button
           type="button"
           onClick={handleAiBlessing}
           disabled={aiBlessLoading}
           className="w-full rounded-md bg-[#616da2]/15 py-2 text-xs font-medium text-[#616da2] hover:bg-[#616da2]/25 disabled:opacity-50"
         >
-          {aiBlessLoading ? "千问优化中…" : "千问优化"}
+          {aiBlessLoading ? "AI 优化中…" : "AI 优化"}
         </button>
         {aiBlessError && (
           <p className="mt-1 flex flex-wrap items-center gap-1 text-xs text-red-500">

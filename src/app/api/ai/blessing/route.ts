@@ -1,28 +1,15 @@
 /**
- * AI 祝福语优化 - 接入通义千问
- * 根据收件人、寄件人、上下文生成更贴切、有文采的祝福语
+ * AI 祝福语优化 - 支持多模型：千问、DeepSeek、Kimi、智谱、豆包
+ * 用户可在页面对话框填入 API Key，或使用环境变量（仅千问）
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { getProvider } from "@/data/ai-providers";
+import type { AIProviderId } from "@/data/ai-providers";
 
-// 默认北京节点；海外或网络不稳定时可改用国际/美国节点
-// DASHSCOPE_BASE_URL=https://dashscope-intl.aliyuncs.com/compatible-mode/v1 （新加坡）
-// DASHSCOPE_BASE_URL=https://dashscope-us.aliyuncs.com/compatible-mode/v1 （美国）
-const DEFAULT_BASE =
-  "https://dashscope.aliyuncs.com/compatible-mode/v1";
+const QWEN_DEFAULT = "https://dashscope.aliyuncs.com/compatible-mode/v1";
 
 export async function POST(req: NextRequest) {
-  const apiKey = process.env.DASHSCOPE_API_KEY?.trim();
-  if (!apiKey || apiKey === "sk-xxxxxxxxxxxx") {
-    return NextResponse.json(
-      {
-        error:
-          "请配置 DASHSCOPE_API_KEY：复制 .env.local.example 为 .env.local，并填入阿里云 DashScope API Key（https://dashscope.console.aliyun.com/）",
-      },
-      { status: 503 }
-    );
-  }
-
   try {
     const body = await req.json();
     const {
@@ -31,13 +18,50 @@ export async function POST(req: NextRequest) {
       currentBlessing = "",
       relationship = "friend",
       persona = "default",
+      provider: reqProvider = "qwen",
+      apiKey: reqApiKey,
+      endpointId,
     } = body as {
       recipientName?: string;
       senderName?: string;
       currentBlessing?: string;
       relationship?: string;
       persona?: string;
+      provider?: AIProviderId;
+      apiKey?: string;
+      endpointId?: string;
     };
+
+    const providerId = reqProvider as AIProviderId;
+    const providerConfig = getProvider(providerId);
+    let apiKey = reqApiKey?.trim();
+    let baseUrl: string;
+    let model: string;
+
+    if (providerConfig) {
+      baseUrl = providerConfig.url;
+      model = (providerConfig as { needEndpoint?: boolean }).needEndpoint && endpointId ? endpointId : providerConfig.model;
+      if (!apiKey && providerId === "qwen") {
+        apiKey = process.env.DASHSCOPE_API_KEY?.trim();
+        if (process.env.DASHSCOPE_BASE_URL) {
+          baseUrl = process.env.DASHSCOPE_BASE_URL.replace(/\/$/, "");
+        }
+      }
+    } else {
+      baseUrl = process.env.DASHSCOPE_BASE_URL?.trim() || QWEN_DEFAULT;
+      model = "qwen-turbo";
+      apiKey = apiKey || process.env.DASHSCOPE_API_KEY?.trim();
+    }
+
+    if (!apiKey || apiKey === "sk-xxxxxxxxxxxx") {
+      return NextResponse.json(
+        {
+          error:
+            "请填写 API Key：在页面「AI 优化」上方选择模型并填入密钥，或配置环境变量（仅千问）",
+        },
+        { status: 503 }
+      );
+    }
 
     const REL_MAP: Record<string, string> = {
       family: "亲人/家人，语气温暖真挚",
@@ -72,8 +96,6 @@ export async function POST(req: NextRequest) {
 
 直接输出祝福语正文，不要引号、不要解释、不要换行。`;
 
-    const baseUrl =
-      process.env.DASHSCOPE_BASE_URL?.trim() || DEFAULT_BASE;
     const apiUrl = `${baseUrl.replace(/\/$/, "")}/chat/completions`;
 
     const res = await fetch(apiUrl, {
@@ -83,7 +105,7 @@ export async function POST(req: NextRequest) {
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "qwen-turbo",
+        model: model || "qwen-turbo",
         messages: [{ role: "user", content: prompt }],
         temperature: 0.8,
         max_tokens: 150,
@@ -92,15 +114,18 @@ export async function POST(req: NextRequest) {
 
     if (!res.ok) {
       const raw = await res.text();
-      let errMsg = `千问 API 调用失败 (${res.status})`;
+      let errMsg = `API 调用失败 (${res.status})`;
       try {
         const errBody = JSON.parse(raw) as { error?: { message?: string }; message?: string };
         const msg = errBody?.error?.message ?? errBody?.message;
         if (msg) errMsg = msg;
       } catch {
-        if (raw) console.error("DashScope raw error:", raw);
+        if (raw) console.error("AI API raw error:", raw);
       }
-      console.error("DashScope error:", errMsg);
+      if (res.status === 401 || res.status === 403 || /invalid|unauthorized|auth/i.test(errMsg)) {
+        errMsg += "。请确认：1) 选择的模型与 Key 来源一致；2) Key 未过期且已开通 API；3) 复制时无多余空格。";
+      }
+      console.error("AI blessing error:", errMsg);
       return NextResponse.json({ error: errMsg }, { status: 502 });
     }
 
@@ -116,7 +141,7 @@ export async function POST(req: NextRequest) {
       "";
     if (!blessing) {
       return NextResponse.json(
-        { error: "千问返回内容为空，请重试" },
+        { error: "模型返回内容为空，请重试" },
         { status: 502 }
       );
     }
@@ -127,10 +152,8 @@ export async function POST(req: NextRequest) {
     const isNetwork = /fetch|network|ECONNREFUSED|ETIMEDOUT|ENOTFOUND/i.test(err.message);
     const isAuth = /401|403|invalid.*key|unauthorized/i.test(err.message);
     let msg = "服务暂不可用，请稍后重试";
-    if (isNetwork)
-      msg =
-        "无法连接千问服务。请确认：1) 已在 .env.local 配置 DASHSCOPE_API_KEY 并已开通阿里云 DashScope；2) 网络可访问外网。海外可添加 DASHSCOPE_BASE_URL=https://dashscope-intl.aliyuncs.com/compatible-mode/v1";
-    else if (isAuth) msg = "API 认证失败，请检查 DASHSCOPE_API_KEY 是否有效";
+    if (isNetwork) msg = "网络连接失败，请检查网络或切换其他模型重试";
+    else if (isAuth) msg = "API 认证失败，请检查 API Key 是否正确";
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

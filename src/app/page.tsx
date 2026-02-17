@@ -40,9 +40,9 @@ export default function Home() {
       </header>
 
       <main className="mx-auto max-w-6xl px-4 py-5">
-        <div className="grid gap-8 lg:grid-cols-2">
-          {/* 左侧：贺卡预览 + 导出 */}
-          <div className="flex flex-col items-center gap-6">
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+          {/* 左侧：贺卡预览 + 导出，略宽以突出主视觉 */}
+          <div className="flex flex-col items-center justify-center gap-6">
             <AICardPreview data={data} ref={cardRef} />
             <div className="flex w-full gap-3">
               <div className="min-w-0 flex-1">

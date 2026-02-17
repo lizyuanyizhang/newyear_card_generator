@@ -55,9 +55,9 @@ const AICardPreview = forwardRef<HTMLDivElement, AICardPreviewProps>(
       <div
         ref={ref}
         data-card-export
-        className="relative aspect-[3/4] w-full max-w-sm overflow-hidden"
+        className="relative aspect-[3/4] w-full max-w-md overflow-hidden"
         style={{
-          minHeight: 400,
+          minHeight: 420,
           backgroundColor: layout.rootBackgroundColor,
         }}
       >
